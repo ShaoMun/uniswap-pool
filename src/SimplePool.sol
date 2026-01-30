@@ -146,8 +146,11 @@ contract SimplePool is ERC20, ReentrancyGuard {
 
         if (amount0In > 0) {
             // Swapping token0 for token1
-            amount0Out = (amount0In * 997) / 1000; // Apply 0.3% fee
-            amount1Out = (reserve0 * amount0Out) / (reserve1 + amount0Out);
+            // Uniswap formula: dy = (y * dx * 997) / (x * 1000 + dx * 997)
+            uint256 amountInWithFee = (amount0In * 997) / 1000;
+            amount1Out = (reserve1 * amountInWithFee) / (reserve0 + amountInWithFee);
+
+            require(amount1Out < reserve1, "SimplePool: INSUFFICIENT_LIQUIDITY");
 
             reserve0 += amount0In;
             reserve1 -= amount1Out;
@@ -158,8 +161,11 @@ contract SimplePool is ERC20, ReentrancyGuard {
             require(amount1Out >= amount1OutMinimum, "SimplePool: INSUFFICIENT_OUTPUT_AMOUNT");
         } else {
             // Swapping token1 for token0
-            amount1Out = (amount1In * 997) / 1000; // Apply 0.3% fee
-            amount0Out = (reserve1 * amount1Out) / (reserve0 + amount1Out);
+            // Uniswap formula: dx = (x * dy * 997) / (y * 1000 + dy * 997)
+            uint256 amountInWithFee = (amount1In * 997) / 1000;
+            amount0Out = (reserve0 * amountInWithFee) / (reserve1 + amountInWithFee);
+
+            require(amount0Out < reserve0, "SimplePool: INSUFFICIENT_LIQUIDITY");
 
             reserve1 += amount1In;
             reserve0 -= amount0Out;
