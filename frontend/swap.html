@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Swap Interface</title>
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+        if (typeof ethers === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 24px;
+            text-align: center;
+        }
+
+        .wallet-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .connect-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .connect-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .connect-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .wallet-address {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+            word-break: break-all;
+        }
+
+        .balances {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .balance-item {
+            flex: 1;
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .balance-label {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 5px;
+        }
+
+        .balance-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .swap-box {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .swap-row {
+            margin-bottom: 15px;
+        }
+
+        .swap-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .swap-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .swap-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .swap-input {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .swap-input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .swap-select {
+            padding: 12px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            background: white;
+            cursor: pointer;
+            min-width: 100px;
+        }
+
+        .swap-select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .swap-arrow {
+            text-align: center;
+            color: #667eea;
+            font-size: 20px;
+            margin: -10px 0;
+        }
+
+        .swap-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 20px;
+        }
+
+        .swap-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .swap-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.active {
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .network-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .pool-info {
+            font-size: 11px;
+            color: #999;
+            text-align: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .rate-info {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>🔄 Token Swap</h1>
+
+            <!-- Wallet Section -->
+            <div class="wallet-section">
+                <button id="connectBtn" class="connect-btn">Connect Wallet</button>
+                <div id="walletAddress" class="wallet-address" style="display: none;"></div>
+                <div class="network-badge">Sepolia Testnet</div>
+
+                <div id="balances" class="balances" style="display: none;">
+                    <div class="balance-item">
+                        <div class="balance-label">ETH</div>
+                        <div class="balance-value" id="balanceETH">0</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-label">USDT</div>
+                        <div class="balance-value" id="balanceUSDT">0</div>
+                    </div>
+                    <div class="balance-item">
+                        <div class="balance-label">EURC</div>
+                        <div class="balance-value" id="balanceEURC">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Swap Section -->
+            <div class="swap-box">
+                <div class="swap-row">
+                    <div class="swap-label">From</div>
+                    <div class="swap-input-group">
+                        <input type="number" id="amountIn" class="swap-input" placeholder="0.0" min="0" step="0.001">
+                        <select id="tokenIn" class="swap-select">
+                            <option value="ETH">ETH</option>
+                            <option value="USDT">USDT</option>
+                            <option value="EURC">EURC</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="swap-arrow">↓</div>
+
+                <div class="swap-row">
+                    <div class="swap-label">To</div>
+                    <div class="swap-input-group">
+                        <input type="number" id="amountOut" class="swap-input" placeholder="0.0" readonly>
+                        <select id="tokenOut" class="swap-select">
+                            <option value="USDT">USDT</option>
+                            <option value="ETH">ETH</option>
+                            <option value="EURC">EURC</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="rateInfo" class="rate-info"></div>
+            </div>
+
+            <button id="swapBtn" class="swap-btn" disabled>Connect Wallet to Swap</button>
+
+            <div id="status" class="status"></div>
+
+            <div class="pool-info">
+                <strong>Available Pools:</strong><br>
+                ETH/USDT • EURC/USDT • ETH/EURC
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Contract addresses
+        const TOKENS = {
+            ETH: '0x715f70ef11A65b4c8A7CCAa32E8aAaeE5011F15e',
+            USDT: '0xa3750d39Fa8c377a7FB87FD1F2Be4321722E2c58',
+            EURC: '0x326c5d56646A513151c75DFa5923eF6875dE53d5'
+        };
+
+        const POOLS = {
+            ETH_USDT: '0xD8abab3a58b8c5F9d888dE55ab5EaCAB7C875340',
+            EURC_USDT: '0x7f8Ac573Eb95b79e422a77FD01386afbB8e265bc',
+            ETH_EURC: '0xfF0dd27e9Fa0c0DC5c02ed52822Cf7cD5F779892'
+        };
+
+        // ABIs
+        const ERC20_ABI = [
+            'function approve(address spender, uint256 amount) returns (bool)',
+            'function balanceOf(address owner) view returns (uint256)',
+            'function allowance(address owner, address spender) view returns (uint256)'
+        ];
+
+        const POOL_ABI = [
+            'function swap(uint256 amount0In, uint256 amount1In, uint256 amount0OutMinimum, uint256 amount1OutMinimum, address to) returns (uint256 amount0Out, uint256 amount1Out)',
+            'function token0() view returns (address)',
+            'function token1() view returns (address)',
+            'function reserve0() view returns (uint256)',
+            'function reserve1() view returns (uint256)'
+        ];
+
+        let provider, signer, contracts;
+
+        // Initialize
+        async function init() {
+            if (typeof window.ethereum === 'undefined') {
+                showStatus('Please install MetaMask to use this application', 'error');
+                return;
+            }
+
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+
+                // Check network
+                const network = await provider.getNetwork();
+                const SEPOLIA_CHAIN_ID = 11155111;
+
+                if (network.chainId !== SEPOLIA_CHAIN_ID) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xaa36a7' }],
+                        });
+                        setTimeout(() => location.reload(), 1000);
+                        return;
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            try {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0xaa36a7',
+                                        chainName: 'Sepolia Test Network',
+                                        nativeCurrency: {
+                                            name: 'Sepolia ETH',
+                                            symbol: 'ETH',
+                                            decimals: 18
+                                        },
+                                        rpcUrls: ['https://rpc.sepolia.org'],
+                                        blockExplorerUrls: ['https://sepolia.etherscan.io']
+                                    }]
+                                });
+                                setTimeout(() => location.reload(), 1000);
+                                return;
+                            } catch (addError) {
+                                showStatus('Please manually switch to Sepolia testnet in MetaMask', 'error');
+                                return;
+                            }
+                        }
+                        showStatus('Please switch to Sepolia testnet in MetaMask', 'error');
+                        return;
+                    }
+                }
+
+                await provider.send('eth_requestAccounts', []);
+                signer = provider.getSigner();
+
+                // Initialize contracts
+                contracts = {
+                    ETH: new ethers.Contract(TOKENS.ETH, ERC20_ABI, signer),
+                    USDT: new ethers.Contract(TOKENS.USDT, ERC20_ABI, signer),
+                    EURC: new ethers.Contract(TOKENS.EURC, ERC20_ABI, signer)
+                };
+
+                const address = await signer.getAddress();
+                document.getElementById('walletAddress').textContent =
+                    address.slice(0, 6) + '...' + address.slice(-4);
+                document.getElementById('walletAddress').style.display = 'block';
+
+                document.getElementById('connectBtn').textContent = 'Wallet Connected';
+                document.getElementById('connectBtn').disabled = true;
+
+                await updateBalances();
+                document.getElementById('balances').style.display = 'flex';
+                document.getElementById('swapBtn').disabled = false;
+                document.getElementById('swapBtn').textContent = 'Swap';
+
+                // Listen for account changes
+                window.ethereum.on('accountsChanged', (accounts) => {
+                    if (accounts.length === 0) {
+                        location.reload();
+                    } else {
+                        location.reload();
+                    }
+                });
+
+                window.ethereum.on('chainChanged', () => location.reload());
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                showStatus('Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+
+        // Update balances
+        async function updateBalances() {
+            try {
+                const address = await signer.getAddress();
+                const balances = {
+                    ETH: await contracts.ETH.balanceOf(address),
+                    USDT: await contracts.USDT.balanceOf(address),
+                    EURC: await contracts.EURC.balanceOf(address)
+                };
+
+                document.getElementById('balanceETH').textContent = formatBalance(balances.ETH);
+                document.getElementById('balanceUSDT').textContent = formatBalance(balances.USDT);
+                document.getElementById('balanceEURC').textContent = formatBalance(balances.EURC);
+            } catch (error) {
+                console.error('Error fetching balances:', error);
+            }
+        }
+
+        // Format balance
+        function formatBalance(balance) {
+            const formatted = ethers.utils.formatEther(balance);
+            const num = parseFloat(formatted);
+            if (num === 0) return '0';
+            if (num < 1) return num.toFixed(4);
+            if (num < 1000) return num.toFixed(2);
+            return (num / 1000).toFixed(2) + 'K';
+        }
+
+        // Get pool for token pair
+        function getPoolForPair(tokenIn, tokenOut) {
+            const pair = [tokenIn, tokenOut].sort().join('_');
+            const poolKey = Object.keys(POOLS).find(key => {
+                const tokens = key.split('_');
+                return tokens.includes(tokenIn) && tokens.includes(tokenOut);
+            });
+
+            if (!poolKey) {
+                return null;
+            }
+
+            return POOLS[poolKey];
+        }
+
+        // Calculate output amount
+        async function calculateOutput(amountIn, tokenIn, tokenOut) {
+            try {
+                const poolAddress = getPoolForPair(tokenIn, tokenOut);
+                if (!poolAddress) return null;
+
+                const pool = new ethers.Contract(poolAddress, POOL_ABI, provider);
+                const token0Address = await pool.token0();
+                const isToken0Input = token0Address.toLowerCase() === TOKENS[tokenIn].toLowerCase();
+
+                const reserve0 = await pool.reserve0();
+                const reserve1 = await pool.reserve1();
+
+                const reserveIn = isToken0Input ? reserve0 : reserve1;
+                const reserveOut = isToken0Input ? reserve1 : reserve0;
+
+                // Calculate with 0.3% fee
+                const amountInWithFee = BigInt(Math.floor(parseFloat(amountIn) * 0.997 * 1e18));
+                const amountOut = (amountInWithFee * BigInt(reserveOut.toString())) /
+                    (BigInt(reserveIn.toString()) * 1000n + amountInWithFee);
+
+                return ethers.utils.formatEther(amountOut);
+            } catch (error) {
+                console.error('Error calculating output:', error);
+                return null;
+            }
+        }
+
+        // Show status
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = `status ${type} active`;
+            setTimeout(() => statusDiv.classList.remove('active'), 5000);
+        }
+
+        // Swap
+        async function executeSwap() {
+            const tokenIn = document.getElementById('tokenIn').value;
+            const tokenOut = document.getElementById('tokenOut').value;
+            const amountIn = document.getElementById('amountIn').value;
+
+            if (!amountIn || parseFloat(amountIn) <= 0) {
+                showStatus('Please enter a valid amount', 'error');
+                return;
+            }
+
+            if (tokenIn === tokenOut) {
+                showStatus('Cannot swap same token', 'error');
+                return;
+            }
+
+            const poolAddress = getPoolForPair(tokenIn, tokenOut);
+            if (!poolAddress) {
+                showStatus(`No pool available for ${tokenIn}/${tokenOut}`, 'error');
+                return;
+            }
+
+            try {
+                showStatus('<span class="spinner"></span>Preparing swap...', 'info');
+
+                const amountInWei = ethers.utils.parseEther(amountIn);
+                const tokenContract = contracts[tokenIn];
+
+                // Check allowance
+                const allowance = await tokenContract.allowance(await signer.getAddress(), poolAddress);
+
+                if (allowance.lt(amountInWei)) {
+                    showStatus('<span class="spinner"></span>Approving token...', 'info');
+                    const approveTx = await tokenContract.approve(poolAddress, amountInWei);
+                    await approveTx.wait();
+                    showStatus('Token approved! Proceeding with swap...', 'success');
+                }
+
+                // Execute swap
+                showStatus('<span class="spinner"></span>Executing swap...', 'info');
+
+                const pool = new ethers.Contract(poolAddress, POOL_ABI, signer);
+                const token0Address = await pool.token0();
+                const isToken0Input = token0Address.toLowerCase() === TOKENS[tokenIn].toLowerCase();
+
+                const swapTx = await pool.swap(
+                    isToken0Input ? amountInWei : 0,
+                    isToken0Input ? 0 : amountInWei,
+                    0,
+                    0,
+                    await signer.getAddress()
+                );
+
+                showStatus('<span class="spinner"></span>Waiting for confirmation...', 'info');
+                const receipt = await swapTx.wait();
+
+                showStatus(`✅ Swap successful! Tx: ${receipt.transactionHash.slice(0, 10)}...`, 'success');
+
+                await updateBalances();
+                document.getElementById('amountIn').value = '';
+                document.getElementById('amountOut').value = '';
+                document.getElementById('rateInfo').textContent = '';
+
+            } catch (error) {
+                console.error('Swap error:', error);
+                showStatus('❌ Swap failed: ' + (error.message || 'Unknown error'), 'error');
+            }
+        }
+
+        // Event listeners
+        document.getElementById('connectBtn').addEventListener('click', init);
+
+        document.getElementById('swapBtn').addEventListener('click', executeSwap);
+
+        // Update output amount when input changes
+        document.getElementById('amountIn').addEventListener('input', async (e) => {
+            const amountIn = e.target.value;
+            const tokenIn = document.getElementById('tokenIn').value;
+            const tokenOut = document.getElementById('tokenOut').value;
+
+            if (amountIn && parseFloat(amountIn) > 0 && tokenIn !== tokenOut) {
+                const output = await calculateOutput(amountIn, tokenIn, tokenOut);
+                if (output) {
+                    document.getElementById('amountOut').value = parseFloat(output).toFixed(6);
+                    const rate = (parseFloat(output) / parseFloat(amountIn)).toFixed(6);
+                    document.getElementById('rateInfo').textContent =
+                        `1 ${tokenIn} = ${rate} ${tokenOut}`;
+                }
+            } else {
+                document.getElementById('amountOut').value = '';
+                document.getElementById('rateInfo').textContent = '';
+            }
+        });
+
+        // Recalculate when tokens change
+        ['tokenIn', 'tokenOut'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                document.getElementById('amountIn').dispatchEvent(new Event('input'));
+            });
+        });
+    </script>
+</body>
+</html>

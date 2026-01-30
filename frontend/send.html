@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Send Tokens</title>
+    <script src="https://unpkg.com/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+        // Fallback if unpkg fails
+        if (typeof ethers === 'undefined') {
+            document.write('<script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"><\/script>');
+        }
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 35px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 26px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .wallet-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 25px;
+        }
+
+        .connect-btn {
+            width: 100%;
+            padding: 12px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .connect-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+        }
+
+        .connect-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .wallet-info {
+            margin-top: 15px;
+        }
+
+        .wallet-address {
+            font-size: 13px;
+            color: #666;
+            text-align: center;
+            margin-bottom: 15px;
+            word-break: break-all;
+        }
+
+        .balances-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .balance-card {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .token-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            color: white;
+            margin: 0 auto 8px;
+        }
+
+        .token-icon.eth { background: #627eea; }
+        .token-icon.usdt { background: #26a17b; }
+        .token-icon.eurc { background: #1d756f; }
+
+        .balance-label {
+            font-size: 11px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .balance-value {
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .quick-amounts {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .quick-amount {
+            padding: 8px 14px;
+            background: #f0f0f0;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .quick-amount:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .send-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .send-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .status {
+            padding: 14px 16px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 13px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.active {
+            display: block;
+        }
+
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .network-badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-top: 10px;
+        }
+
+        .tx-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .tx-link:hover {
+            text-decoration: underline;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 20px;
+            font-size: 12px;
+            color: #004085;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <h1>💸 Send Tokens</h1>
+            <p class="subtitle">Transfer ETH, USDT, or EURC to any address on Sepolia</p>
+
+            <!-- Wallet Section -->
+            <div class="wallet-section">
+                <button id="connectBtn" class="connect-btn">Connect Wallet</button>
+
+                <div id="walletInfo" class="wallet-info" style="display: none;">
+                    <div id="walletAddress" class="wallet-address"></div>
+                    <div class="network-badge">Sepolia Testnet</div>
+
+                    <div class="balances-grid">
+                        <div class="balance-card">
+                            <div class="token-icon eth">Ξ</div>
+                            <div class="balance-label">ETH</div>
+                            <div class="balance-value" id="balanceETH">0</div>
+                        </div>
+                        <div class="balance-card">
+                            <div class="token-icon usdt">$</div>
+                            <div class="balance-label">USDT</div>
+                            <div class="balance-value" id="balanceUSDT">0</div>
+                        </div>
+                        <div class="balance-card">
+                            <div class="token-icon eurc">€</div>
+                            <div class="balance-label">EURC</div>
+                            <div class="balance-value" id="balanceEURC">0</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Form -->
+            <div class="info-box">
+                <strong>ℹ️ Info:</strong> You can send test tokens to anyone for testing purposes.
+            </div>
+
+            <form id="sendForm">
+                <div class="form-group">
+                    <label for="recipient">📩 Recipient Address</label>
+                    <input
+                        type="text"
+                        id="recipient"
+                        placeholder="0x..."
+                        pattern="^0x[a-fA-F0-9]{40}$"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="tokenSelect">🪙 Select Token</label>
+                    <select id="tokenSelect">
+                        <option value="ETH">Ethereum (ETH)</option>
+                        <option value="USDT">Tether (USDT)</option>
+                        <option value="EURC">Euro Coin (EURC)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="amount">💰 Amount</label>
+                    <input
+                        type="number"
+                        id="amount"
+                        placeholder="1000"
+                        min="0.000001"
+                        step="0.000001"
+                        required
+                    >
+                    <div class="quick-amounts">
+                        <button type="button" class="quick-amount" onclick="setAmount(100)">100</button>
+                        <button type="button" class="quick-amount" onclick="setAmount(1000)">1K</button>
+                        <button type="button" class="quick-amount" onclick="setAmount(10000)">10K</button>
+                        <button type="button" class="quick-amount" onclick="setAmount(100000)">100K</button>
+                        <button type="button" class="quick-amount" onclick="setMaxAmount()">Max</button>
+                    </div>
+                </div>
+
+                <button type="submit" id="sendBtn" class="send-btn" disabled>
+                    Connect Wallet to Send
+                </button>
+            </form>
+
+            <div id="status" class="status"></div>
+
+            <div id="debugInfo" style="background: #f0f0f0; padding: 10px; border-radius: 8px; margin-top: 20px; font-size: 11px; font-family: monospace; display: none;">
+                <strong>Debug Info:</strong>
+                <pre id="debugContent"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Token addresses
+        const TOKENS = {
+            ETH: '0x715f70ef11A65b4c8A7CCAa32E8aAaeE5011F15e',
+            USDT: '0xa3750d39Fa8c377a7FB87FD1F2Be4321722E2c58',
+            EURC: '0x326c5d56646A513151c75DFa5923eF6875dE53d5'
+        };
+
+        // ERC20 ABI
+        const ERC20_ABI = [
+            'function transfer(address to, uint256 amount) returns (bool)',
+            'function balanceOf(address owner) view returns (uint256)'
+        ];
+
+        let provider, signer, contracts;
+        let balances = { ETH: 0, USDT: 0, EURC: 0 };
+
+        // Initialize
+        async function init() {
+            if (typeof window.ethereum === 'undefined') {
+                showStatus('Please install MetaMask to use this application', 'error');
+                return;
+            }
+
+            try {
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+
+                // Check network
+                const network = await provider.getNetwork();
+                const SEPOLIA_CHAIN_ID = 11155111;
+
+                if (network.chainId !== SEPOLIA_CHAIN_ID) {
+                    // Request to switch to Sepolia
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xaa36a7' }], // 11155111 in hex
+                        });
+                        // Reload after switching
+                        setTimeout(() => location.reload(), 1000);
+                        return;
+                    } catch (switchError) {
+                        // This error code indicates that the chain has not been added to MetaMask
+                        if (switchError.code === 4902) {
+                            try {
+                                await window.ethereum.request({
+                                    method: 'wallet_addEthereumChain',
+                                    params: [{
+                                        chainId: '0xaa36a7',
+                                        chainName: 'Sepolia Test Network',
+                                        nativeCurrency: {
+                                            name: 'Sepolia ETH',
+                                            symbol: 'ETH',
+                                            decimals: 18
+                                        },
+                                        rpcUrls: ['https://rpc.sepolia.org'],
+                                        blockExplorerUrls: ['https://sepolia.etherscan.io']
+                                    }]
+                                });
+                                setTimeout(() => location.reload(), 1000);
+                                return;
+                            } catch (addError) {
+                                showStatus('Please manually switch to Sepolia testnet in MetaMask', 'error');
+                                console.error('Error adding Sepolia network:', addError);
+                                return;
+                            }
+                        } else {
+                            showStatus('Please switch to Sepolia testnet in MetaMask', 'error');
+                            console.error('Error switching network:', switchError);
+                            return;
+                        }
+                    }
+                }
+
+                await provider.send('eth_requestAccounts', []);
+                signer = provider.getSigner();
+
+                // Initialize token contracts
+                contracts = {
+                    ETH: new ethers.Contract(TOKENS.ETH, ERC20_ABI, signer),
+                    USDT: new ethers.Contract(TOKENS.USDT, ERC20_ABI, signer),
+                    EURC: new ethers.Contract(TOKENS.EURC, ERC20_ABI, signer)
+                };
+
+                const address = await signer.getAddress();
+                document.getElementById('walletAddress').textContent =
+                    `${address.slice(0, 8)}...${address.slice(-6)}`;
+
+                // Update network badge
+                const networkInfo = document.querySelector('.network-badge');
+                if (networkInfo) {
+                    networkInfo.textContent = '✅ Sepolia Testnet';
+                    networkInfo.style.background = '#28a745';
+                }
+
+                document.getElementById('connectBtn').textContent = 'Wallet Connected';
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('walletInfo').style.display = 'block';
+
+                await updateBalances();
+
+                // Debug info
+                console.log('=== DEBUG INFO ===');
+                console.log('Wallet address:', await signer.getAddress());
+                console.log('Network:', (await provider.getNetwork()).name);
+                console.log('Chain ID:', (await provider.getNetwork()).chainId);
+                console.log('Contracts initialized:', Object.keys(contracts));
+                console.log('=================');
+
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('sendBtn').textContent = 'Send Tokens';
+
+                // Listen for changes
+                window.ethereum.on('accountsChanged', () => location.reload());
+                window.ethereum.on('chainChanged', () => location.reload());
+
+            } catch (error) {
+                console.error('Connection error:', error);
+                showStatus('Failed to connect wallet: ' + error.message, 'error');
+            }
+        }
+
+        // Update balances
+        async function updateBalances() {
+            const debugDiv = document.getElementById('debugInfo');
+            const debugContent = document.getElementById('debugContent');
+            let debugText = '';
+
+            try {
+                const address = await signer.getAddress();
+                debugText += `Address: ${address}\n`;
+
+                // Fetch balances with detailed logging
+                const ethBal = await contracts.ETH.balanceOf(address);
+                debugText += `ETH Raw: ${ethBal.toString()}\n`;
+                debugText += `ETH Formatted: ${ethers.utils.formatEther(ethBal)}\n`;
+
+                const usdtBal = await contracts.USDT.balanceOf(address);
+                debugText += `USDT Raw: ${usdtBal.toString()}\n`;
+
+                const eurcBal = await contracts.EURC.balanceOf(address);
+                debugText += `EURC Raw: ${eurcBal.toString()}\n`;
+
+                // Store as BigNumbers
+                balances.ETH = ethBal;
+                balances.USDT = usdtBal;
+                balances.EURC = eurcBal;
+
+                document.getElementById('balanceETH').textContent = formatBalance(ethBal);
+                document.getElementById('balanceUSDT').textContent = formatBalance(usdtBal);
+                document.getElementById('balanceEURC').textContent = formatBalance(eurcBal);
+
+                // Show debug
+                debugDiv.style.display = 'block';
+                debugContent.textContent = debugText;
+
+            } catch (error) {
+                debugText += `ERROR: ${error.message}\n`;
+                debugText += `Stack: ${error.stack}\n`;
+                debugDiv.style.display = 'block';
+                debugContent.textContent = debugText;
+            }
+        }
+
+        // Format balance
+        function formatBalance(balance) {
+            const formatted = parseFloat(ethers.utils.formatEther(balance));
+            if (formatted === 0) return '0';
+            if (formatted < 0.001) return formatted.toFixed(6);
+            if (formatted < 1) return formatted.toFixed(4);
+            if (formatted < 1000) return formatted.toFixed(2);
+            return (formatted / 1000).toFixed(2) + 'K';
+        }
+
+        // Set amount
+        function setAmount(amount) {
+            document.getElementById('amount').value = amount;
+        }
+
+        // Set max amount
+        function setMaxAmount() {
+            const token = document.getElementById('tokenSelect').value;
+            const balance = balances[token];
+
+            if (balance && balance.gt(0)) {
+                const formatted = ethers.utils.formatEther(balance);
+                document.getElementById('amount').value = Math.floor(parseFloat(formatted) * 1000000) / 1000000;
+            } else {
+                document.getElementById('amount').value = 0;
+            }
+        }
+
+        // Show status
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = message;
+            statusDiv.className = `status ${type} active`;
+            setTimeout(() => {
+                if (type === 'success') {
+                    statusDiv.classList.remove('active');
+                }
+            }, 10000);
+        }
+
+        // Send tokens
+        async function sendTokens(e) {
+            e.preventDefault();
+
+            const recipient = document.getElementById('recipient').value;
+            const amount = document.getElementById('amount').value;
+            const tokenSelect = document.getElementById('tokenSelect').value;
+
+            // Validate recipient address
+            if (!ethers.utils.isAddress(recipient)) {
+                showStatus('❌ Invalid recipient address', 'error');
+                return;
+            }
+
+            // Validate amount
+            const amountNum = parseFloat(amount);
+            if (isNaN(amountNum) || amountNum <= 0) {
+                showStatus('❌ Please enter a valid amount', 'error');
+                return;
+            }
+
+            // Check balance
+            const balance = balances[tokenSelect];
+            const amountWei = ethers.utils.parseEther(amount);
+
+            // Ensure balance is a BigNumber
+            if (!balance || balance.lt(amountWei)) {
+                showStatus(`❌ Insufficient ${tokenSelect} balance`, 'error');
+                return;
+            }
+
+            showStatus('<span class="spinner"></span>Sending tokens...', 'info');
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                const contract = contracts[tokenSelect];
+
+                const tx = await contract.transfer(recipient, amountWei);
+                showStatus('<span class="spinner"></span>Transaction sent! Waiting for confirmation...', 'info');
+
+                const receipt = await tx.wait();
+
+                showStatus(
+                    `✅ Tokens sent successfully!<br>` +
+                    `Tx: <a href="https://sepolia.etherscan.io/tx/${receipt.transactionHash}" target="_blank" class="tx-link">${receipt.transactionHash.slice(0, 10)}...${receipt.transactionHash.slice(-8)}</a>`,
+                    'success'
+                );
+
+                await updateBalances();
+
+                document.getElementById('recipient').value = '';
+                document.getElementById('amount').value = '';
+
+            } catch (error) {
+                console.error('Error sending tokens:', error);
+                showStatus('❌ Failed to send tokens: ' + (error.message || 'Unknown error'), 'error');
+            } finally {
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+
+        // Event listeners
+        document.getElementById('connectBtn').addEventListener('click', init);
+        document.getElementById('sendForm').addEventListener('submit', sendTokens);
+
+        // Update max when token changes
+        document.getElementById('tokenSelect').addEventListener('change', () => {
+            const amount = document.getElementById('amount').value;
+            if (amount === 'Max' || document.activeEvent === 'change') {
+                setMaxAmount();
+            }
+        });
+    </script>
+</body>
+</html>
